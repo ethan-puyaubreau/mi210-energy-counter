@@ -1,0 +1,15 @@
+DBSCANCalculation on mi210-2026-10-09, energy from the hardware counter
+fdbscan           median of 64 runs: 6.948 s  1465.2 J  210.9 W   (power trapezoid 1463.7 J; H100 poster 2.69 s, 777 J)
+fdbscan-densebox  median of 64 runs: 4.309 s  846.3 J  196.5 W   (power trapezoid 844.9 J; H100 poster 2.19 s, 580 J)
+fdbscan           quartiles: 6.942 to 6.953 s  1464.2 to 1466.9 J
+fdbscan-densebox  quartiles: 4.305 to 4.314 s  845.8 to 847.5 J
+densebox vs fdbscan: 38.0% less time, 42.2% less energy, 6.8% less mean power
+bootstrap 95% interval, reduction in time: 37.9% to 38.0%
+bootstrap 95% interval, reduction in energy: 42.2% to 42.3%
+fdbscan           no run is more than 30% slower than the median
+fdbscan-densebox  no run is more than 30% slower than the median
+fdbscan           mean of all runs: 6.948 s  1464.8 J
+fdbscan-densebox  mean of all runs: 4.314 s  847.2 J
+runs that waited for GPU 0: none
+neighbor GPUs logged around 118 of 128 runs (11 to 128); busy during: none
+amdsmi read cost at the sampling period: median p50 473 us, median p99 792 us

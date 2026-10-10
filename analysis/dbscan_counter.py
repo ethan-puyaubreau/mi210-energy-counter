@@ -93,10 +93,11 @@ def main():
 
     neighbors = neighbor_activity(study)
     for run in runs["fdbscan"] + runs["fdbscan-densebox"]:
-        # A neighbor sample within 15 s of the region (the logging period) counts.
-        run["neighbor_busy"] = (None if neighbors is None else any(
-            busy for t, busy in neighbors
-            if run["start_ns"] - 15e9 <= t <= run["end_ns"] + 15e9))
+        # A neighbor sample within 15 s of the region (the logging period) counts;
+        # None when no sample falls there (log not running yet).
+        window = [busy for t, busy in neighbors or []
+                  if run["start_ns"] - 15e9 <= t <= run["end_ns"] + 15e9]
+        run["neighbor_busy"] = any(window) if window else None
 
     every = sorted(runs["fdbscan"] + runs["fdbscan-densebox"], key=lambda r: r["index"])
     with open(study / "per_run.csv", "w", newline="") as f:
@@ -147,8 +148,10 @@ def main():
     if neighbors is None:
         print("neighbor GPUs: not logged")
     else:
+        covered = [r["index"] for r in every if r["neighbor_busy"] is not None]
         flagged = [r["index"] for r in every if r["neighbor_busy"]]
-        print(f"runs with a busy neighbor GPU: {flagged or 'none'} ({len(neighbors)} neighbor samples)")
+        print(f"neighbor GPUs logged around {len(covered)} of {len(every)} runs "
+              f"({min(covered)} to {max(covered)}); busy during: {flagged or 'none'}")
     print(f"amdsmi read cost at the sampling period: median p50 "
           f"{statistics.median(r['read_cost_ns_p50'] for r in every) / 1e3:.0f} us, median p99 "
           f"{statistics.median(r['read_cost_ns_p99'] for r in every) / 1e3:.0f} us")

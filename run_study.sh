@@ -28,6 +28,9 @@ mkdir -p "$OUT"
   echo "command: $EXE --impl <impl> --filename $DATA --core-min-size 2 --eps 0.015"
 } > "$OUT/environment.txt"
 
+"$HERE/log_neighbors.sh" "$OUT/neighbors.csv" &
+trap 'kill %1' EXIT
+
 echo "index,impl,start_iso,exit_code,kfd_busy_before,trace_dir" > "$OUT/runs.csv"
 i=0
 for rep in $(seq 1 "$N"); do

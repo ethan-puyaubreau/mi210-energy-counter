@@ -1,10 +1,18 @@
-"""Per-run time and energy of the DBSCANCalculation region from kp_amdsmi_energy
-traces, medians per implementation, bootstrap of the gap, slow-run detection.
+"""Time and energy of ArborX's DBSCANCalculation region from kp_amdsmi_energy
+traces, with the indicators of the SMC 2025 poster re-analysis
+(smc2025-gpu-energy-poster/analysis/dbscan_medians.py): medians, quartiles,
+bootstrap 95% interval of the reduction, runs more than 30% slower than the
+median, means.
 
 Energy comes from the hardware counter: cumulative energy_joules interpolated
-linearly at the region boundaries, then subtracted. No power integration.
+linearly at the region boundaries, then subtracted. The poster's method
+(trapezoid of power_watts over the samples inside the region) is printed next
+to it as a cross-check.
 
-Usage: python dbscan_counter.py <study dir with runs.csv> [region name]
+Runs whose DBSCANCalculation overlaps activity on the neighbor GPUs
+(neighbors.csv from log_neighbors.sh, if present) are flagged.
+
+Usage: python dbscan_counter.py <study dir with runs.csv>
 Standard library only.
 """
 
@@ -15,6 +23,8 @@ import statistics
 import sys
 from pathlib import Path
 
+REGION = "DBSCANCalculation"
+BOOTSTRAP = 10_000
 POSTER_H100 = {  # medians over 64 runs, SMC 2025 poster re-analysis (NVML)
     "fdbscan": (2.69, 777.0),
     "fdbscan-densebox": (2.19, 580.0),
@@ -23,99 +33,127 @@ POSTER_H100 = {  # medians over 64 runs, SMC 2025 poster re-analysis (NVML)
 
 def counter_at(samples, t):
     """Cumulative energy (J) at time t, linear between the two nearest samples."""
-    for (t0, e0), (t1, e1) in zip(samples, samples[1:]):
+    for (t0, e0, _), (t1, e1, _) in zip(samples, samples[1:]):
         if t0 <= t <= t1:
             return e0 + (e1 - e0) * (t - t0) / (t1 - t0) if t1 > t0 else e0
     raise ValueError(f"t={t} outside the sampled interval")
 
 
-def region_energy(trace_dir, region):
+def measure(trace_dir):
     events = list(csv.DictReader(open(trace_dir / "events.csv", newline="")))
-    matches = [e for e in events if e["name"] == region]
+    matches = [e for e in events if e["name"] == REGION]
     if len(matches) != 1:
-        raise ValueError(f"{trace_dir}: {len(matches)} '{region}' events")
+        raise ValueError(f"{trace_dir}: {len(matches)} {REGION} events")
     start, end = int(matches[0]["start_ns"]), int(matches[0]["end_ns"])
     samples = [
-        (int(r["timestamp_ns"]), float(r["energy_joules"]))
+        (int(r["timestamp_ns"]), float(r["energy_joules"]), float(r["power_watts"]))
         for r in csv.DictReader(open(trace_dir / "power_samples.csv", newline=""))
     ]
-    energy = counter_at(samples, end) - counter_at(samples, start)
+    joules = counter_at(samples, end) - counter_at(samples, start)
+    inside = [(t, p) for t, _, p in samples if start <= t <= end]
+    trapezoid = sum((t1 - t0) * (p0 + p1) / 2
+                    for (t0, p0), (t1, p1) in zip(inside, inside[1:])) / 1e9
     meta = json.load(open(trace_dir / "metadata.json"))
-    return (end - start) * 1e-9, energy, meta
+    seconds = (end - start) / 1e9
+    return {"start_ns": start, "end_ns": end, "seconds": seconds, "joules": joules,
+            "watts": joules / seconds, "joules_trapezoid": trapezoid,
+            "read_cost_ns_p50": meta["read_cost_ns_p50"],
+            "read_cost_ns_p99": meta["read_cost_ns_p99"]}
 
 
-def bootstrap_gap(a, b, rounds=10000, seed=1):
-    """95% interval of median(b)/median(a) - 1 over resampled runs."""
-    rng = random.Random(seed)
-    gaps = sorted(
-        statistics.median(rng.choices(b, k=len(b)))
-        / statistics.median(rng.choices(a, k=len(a)))
-        - 1
-        for _ in range(rounds)
-    )
-    return gaps[int(0.025 * rounds)], gaps[int(0.975 * rounds)]
+def neighbor_activity(study):
+    """(time_ns, busy) samples of the neighbor GPUs, busy if any utilization > 0."""
+    path = study / "neighbors.csv"
+    if not path.exists():
+        return None
+    rows = []
+    for r in csv.DictReader(open(path, newline="")):
+        utils = [r["mi210_1_gfx_pct"], r["h100_util_pct"]]
+        rows.append((int(r["time_epoch_ns"]),
+                     any(u.strip().replace(".", "", 1).isdigit() and float(u) > 0 for u in utils)))
+    return rows
+
+
+def reduction(a, b, key):
+    """Relative reduction of the median of key from runs a to runs b."""
+    return 1 - statistics.median(r[key] for r in b) / statistics.median(r[key] for r in a)
 
 
 def main():
     study = Path(sys.argv[1])
-    region = sys.argv[2] if len(sys.argv) > 2 else "DBSCANCalculation"
-    runs = list(csv.DictReader(open(study / "runs.csv", newline="")))
-
-    rows = []
-    for run in runs:
-        if run["exit_code"] != "0":
-            print(f"skip run {run['index']}: exit code {run['exit_code']}")
+    runs = {"fdbscan": [], "fdbscan-densebox": []}
+    for row in csv.DictReader(open(study / "runs.csv", newline="")):
+        if row["exit_code"] != "0":
+            print(f"skip run {row['index']}: exit code {row['exit_code']}")
             continue
-        seconds, joules, meta = region_energy(study / run["trace_dir"], region)
-        rows.append({
-            "index": int(run["index"]),
-            "impl": run["impl"],
-            "seconds": seconds,
-            "joules": joules,
-            "watts": joules / seconds,
-            "kfd_busy_before": run["kfd_busy_before"],
-            "read_cost_ns_p50": meta["read_cost_ns_p50"],
-            "read_cost_ns_p99": meta["read_cost_ns_p99"],
-            "samples": meta["samples"],
-        })
+        run = measure(study / row["trace_dir"])
+        run.update(index=int(row["index"]), impl=row["impl"],
+                   kfd_busy_before=int(row["kfd_busy_before"]))
+        runs[row["impl"]].append(run)
 
+    neighbors = neighbor_activity(study)
+    for run in runs["fdbscan"] + runs["fdbscan-densebox"]:
+        # A neighbor sample within 15 s of the region (the logging period) counts.
+        run["neighbor_busy"] = (None if neighbors is None else any(
+            busy for t, busy in neighbors
+            if run["start_ns"] - 15e9 <= t <= run["end_ns"] + 15e9))
+
+    every = sorted(runs["fdbscan"] + runs["fdbscan-densebox"], key=lambda r: r["index"])
     with open(study / "per_run.csv", "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(f, fieldnames=list(every[0]))
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(every)
 
-    by_impl = {}
-    for row in rows:
-        by_impl.setdefault(row["impl"], []).append(row)
+    a, b = runs["fdbscan"], runs["fdbscan-densebox"]
+    print(f"{REGION} on {study.name}, energy from the hardware counter")
+    for impl, impl_runs in runs.items():
+        s, j, w = (statistics.median(r[k] for r in impl_runs) for k in ("seconds", "joules", "watts"))
+        jt = statistics.median(r["joules_trapezoid"] for r in impl_runs)
+        ref = POSTER_H100[impl]
+        print(f"{impl:17s} median of {len(impl_runs)} runs: {s:.3f} s  {j:.1f} J  {w:.1f} W"
+              f"   (power trapezoid {jt:.1f} J; H100 poster {ref[0]:.2f} s, {ref[1]:.0f} J)")
+    for impl, impl_runs in runs.items():
+        (s1, _, s3), (j1, _, j3) = (statistics.quantiles([r[k] for r in impl_runs], n=4)
+                                    for k in ("seconds", "joules"))
+        print(f"{impl:17s} quartiles: {s1:.3f} to {s3:.3f} s  {j1:.1f} to {j3:.1f} J")
+    print(f"densebox vs fdbscan: {reduction(a, b, 'seconds'):.1%} less time, "
+          f"{reduction(a, b, 'joules'):.1%} less energy, {reduction(a, b, 'watts'):.1%} less mean power")
+    rng = random.Random(2025)
+    for key, what in (("seconds", "time"), ("joules", "energy")):
+        boot = sorted(reduction(rng.choices(a, k=len(a)), rng.choices(b, k=len(b)), key)
+                      for _ in range(BOOTSTRAP))
+        print(f"bootstrap 95% interval, reduction in {what}: "
+              f"{boot[int(0.025 * BOOTSTRAP)]:.1%} to {boot[int(0.975 * BOOTSTRAP) - 1]:.1%}")
 
-    print(f"region {region}, {len(rows)} runs, {study}")
-    for impl, impl_rows in by_impl.items():
-        t = statistics.median(r["seconds"] for r in impl_rows)
-        e = statistics.median(r["joules"] for r in impl_rows)
-        w = statistics.median(r["watts"] for r in impl_rows)
-        h100 = POSTER_H100.get(impl)
-        ref = f"   (H100 poster: {h100[0]:.2f} s, {h100[1]:.0f} J)" if h100 else ""
-        print(f"{impl:18s} n={len(impl_rows):3d}  median {t:.3f} s  {e:.1f} J  {w:.1f} W{ref}")
-        slow = [r for r in impl_rows if r["seconds"] > 1.25 * t]
-        if slow:
-            print(f"  slow runs (>1.25x median): order {[r['index'] for r in slow]}")
-        busy = [r["index"] for r in impl_rows if r["kfd_busy_before"] != "0"]
-        if busy:
-            print(f"  GPU busy before runs {busy}")
+    for impl, impl_runs in runs.items():
+        med = statistics.median(r["seconds"] for r in impl_runs)
+        slow = [r for r in impl_runs if r["seconds"] > 1.3 * med]
+        if not slow:
+            print(f"{impl:17s} no run is more than 30% slower than the median")
+            continue
+        print(f"{impl:17s} {len(slow)} slow runs, order {[r['index'] for r in slow]}: "
+              f"{min(r['seconds'] for r in slow):.2f} to {max(r['seconds'] for r in slow):.2f} s, "
+              f"mean power {statistics.mean(r['watts'] for r in slow):.0f} W")
+        rest = [r for r in impl_runs if r not in slow]
+        x, y = (rest, b) if impl == "fdbscan" else (a, rest)
+        print(f"  without them: {reduction(x, y, 'seconds'):.1%} less time, "
+              f"{reduction(x, y, 'joules'):.1%} less energy")
+    for impl, impl_runs in runs.items():
+        print(f"{impl:17s} mean of all runs: {statistics.mean(r['seconds'] for r in impl_runs):.3f} s  "
+              f"{statistics.mean(r['joules'] for r in impl_runs):.1f} J")
 
-    if {"fdbscan", "fdbscan-densebox"} <= by_impl.keys():
-        a, b = by_impl["fdbscan"], by_impl["fdbscan-densebox"]
-        for key, label in (("seconds", "time"), ("joules", "energy"), ("watts", "power")):
-            va, vb = [r[key] for r in a], [r[key] for r in b]
-            gap = statistics.median(vb) / statistics.median(va) - 1
-            lo, hi = bootstrap_gap(va, vb)
-            print(f"densebox vs fdbscan {label:6s}: {gap:+.1%}  (95% bootstrap {lo:+.1%} .. {hi:+.1%})")
-
-    costs = [r["read_cost_ns_p50"] for r in rows]
-    costs99 = [r["read_cost_ns_p99"] for r in rows]
-    print(f"amdsmi read cost at the sampling period: median p50 {statistics.median(costs) / 1e3:.0f} us,"
-          f" median p99 {statistics.median(costs99) / 1e3:.0f} us")
+    busy = [r["index"] for r in every if r["kfd_busy_before"]]
+    print(f"runs that waited for GPU 0: {busy or 'none'}")
+    if neighbors is None:
+        print("neighbor GPUs: not logged")
+    else:
+        flagged = [r["index"] for r in every if r["neighbor_busy"]]
+        print(f"runs with a busy neighbor GPU: {flagged or 'none'} ({len(neighbors)} neighbor samples)")
+    print(f"amdsmi read cost at the sampling period: median p50 "
+          f"{statistics.median(r['read_cost_ns_p50'] for r in every) / 1e3:.0f} us, median p99 "
+          f"{statistics.median(r['read_cost_ns_p99'] for r in every) / 1e3:.0f} us")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

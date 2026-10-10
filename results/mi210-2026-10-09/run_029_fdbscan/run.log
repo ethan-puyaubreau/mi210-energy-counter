@@ -1,0 +1,21 @@
+KokkosP AMDSMI energy: GPU 0 (0000:03:00.0), every 10 ms
+ArborX version    : 2.1.99
+ArborX hash       : 953dd610-dirty
+Kokkos version    : 5.0.2
+eps               : 0.015000
+minpts            : 2
+cluster min size  : 1
+algorithm         : dbscan
+implementation    : fdbscan
+precision         : float
+verify            : false
+verbose           : false
+filename          : /home/users/epuyaubreau/hacc_497M.arborx [binary, max_pts = -1]
+samples           : -1
+reading in "/home/users/epuyaubreau/hacc_497M.arborx" in binary mode
+read in 497838606 3D points
+
+#clusters       : 29225716
+#cluster points : 383498265 [77.03%]
+#noise   points : 114340341 [22.97%]
+KokkosP AMDSMI energy: 32 events, 1219 samples -> results/mi210-2026-10-09/run_029_fdbscan

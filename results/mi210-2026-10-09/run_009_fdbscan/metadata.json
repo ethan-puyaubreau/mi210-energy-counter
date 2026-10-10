@@ -1,0 +1,16 @@
+{
+  "spec_version": "1.0",
+  "app_name": "ArborX_Benchmark_DBSCAN.exe",
+  "hostname": "illyad",
+  "kokkos_backend": "HIP",
+  "start_epoch_ns": 1791598878267081484,
+  "connector": "kp_amdsmi_energy (experimental)",
+  "gpu_bdf": "0000:03:00.0",
+  "amdsmi_device_index": 0,
+  "counter_resolution_uj": 15.3,
+  "sample_period_ms": 10,
+  "samples": 1224,
+  "read_failures": 0,
+  "read_cost_ns_p50": 451108,
+  "read_cost_ns_p99": 874077
+}

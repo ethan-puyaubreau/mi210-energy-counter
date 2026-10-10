@@ -1,0 +1,15 @@
+date: 2026-10-09T19:19:36-07:00
+host: illyad, slurm job: 1655319
+rocm: /opt/rocm-7.1.1
+        MARKET_NAME: AMD Instinct MI210
+        TARGET_GRAPHICS_VERSION: gfx90a
+        NAME: Mi200 A1 D67302 pcie
+        BUILD_DATE: 2022/03/08 15:06
+        PART_NUMBER: 113-D67302-104
+        VERSION: 020.040.000.036.000000
+        NAME: amdgpu
+        VERSION: 6.14.14
+kokkos: dfceb77277e23361cccfbcf72c0468fd8475153e
+arborx: 953dd610c7b8944354664b06fa1459ebf277a416 (+ DBSCANCalculation region patch)
+connector: uncommitted
+command: /home/users/epuyaubreau/amd-study/build/arborx/benchmarks/cluster/ArborX_Benchmark_DBSCAN.exe --impl <impl> --filename /home/users/epuyaubreau/hacc_497M.arborx --core-min-size 2 --eps 0.015

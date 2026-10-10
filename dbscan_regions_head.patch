@@ -1,0 +1,28 @@
+diff --git a/benchmarks/cluster/dbscan.cpp b/benchmarks/cluster/dbscan.cpp
+index 731e05fb..fa81c8f2 100644
+--- a/benchmarks/cluster/dbscan.cpp
++++ b/benchmarks/cluster/dbscan.cpp
+@@ -14,6 +14,7 @@
+ #include <ArborX_Version.hpp>
+ 
+ #include <Kokkos_Core.hpp>
++#include <Kokkos_Profiling_ScopedRegion.hpp>
+ 
+ #include <boost/program_options.hpp>
+ 
+@@ -175,8 +176,13 @@ bool run_dbscan(ExecutionSpace const &exec_space, Primitives const &primitives,
+   Kokkos::Profiling::pushRegion("ArborX::DBSCAN::total");
+ 
+   Kokkos::View<int *, MemorySpace> labels("Example::labels", 0);
+-  ArborX::dbscan<ExecutionSpace>(exec_space, primitives, params.eps,
+-                                 params.core_min_size, labels, dbscan_params);
++  Kokkos::fence();
++  {
++    // Region measured by the SMC 2025 poster study.
++    Kokkos::Profiling::ScopedRegion region("DBSCANCalculation");
++    ArborX::dbscan<ExecutionSpace>(exec_space, primitives, params.eps,
++                                   params.core_min_size, labels, dbscan_params);
++  }
+ 
+   Kokkos::Profiling::pushRegion("ArborX::DBSCAN::postprocess");
+   Kokkos::View<int *, MemorySpace> cluster_indices("Testing::cluster_indices",

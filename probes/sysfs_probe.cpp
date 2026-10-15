@@ -1,7 +1,8 @@
 // sysfs_probe: cost of a raw pread of gpu_metrics (no amdsmi in the loop) and
 // how often the energy field inside it moves. amdsmi is only used once, to find
 // which 8-byte slot of gpu_metrics holds the energy accumulator.
-// Usage: sysfs_probe <amdsmi_gpu_index> <path to gpu_metrics> [seconds=2]
+// Usage: sysfs_probe <amdsmi_gpu_index> <path to gpu_metrics> [seconds=2] [csv prefix]
+//   With a prefix, writes <prefix>-pread-cost.csv and <prefix>-energy-changes.csv.
 #include <amd_smi/amdsmi.h>
 
 #include <fcntl.h>
@@ -42,6 +43,7 @@ int main(int argc, char** argv) {
   int gpu = std::atoi(argv[1]);
   std::string path = argv[2];
   double duration = argc > 3 ? std::atof(argv[3]) : 2.0;
+  std::string prefix = argc > 4 ? argv[4] : "";  // raw CSV output, optional
 
   CHECK_SMI(amdsmi_init(AMDSMI_INIT_AMD_GPUS));
   uint32_t nsock = 0;
@@ -143,5 +145,16 @@ int main(int argc, char** argv) {
   std::printf("step_ms min=%.3f p50=%.3f p99=%.3f max=%.3f\n", percentile(step_ms, 0.0),
               percentile(step_ms, 0.5), percentile(step_ms, 0.99), percentile(step_ms, 1.0));
   close(fd);
+
+  if (!prefix.empty()) {
+    std::FILE* f = std::fopen((prefix + "-pread-cost.csv").c_str(), "w");
+    std::fprintf(f, "pread_ns\n");
+    for (double v : cost_ns) std::fprintf(f, "%.0f\n", v);
+    std::fclose(f);
+    f = std::fopen((prefix + "-energy-changes.csv").c_str(), "w");
+    std::fprintf(f, "host_ms\n");
+    for (double t : change_t) std::fprintf(f, "%.6f\n", t);
+    std::fclose(f);
+  }
   return 0;
 }

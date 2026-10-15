@@ -1,5 +1,6 @@
 // energy_probe: quick look at the AMD GPU energy counter through amdsmi.
-// Usage: energy_probe <sleep|awake|load> [amdsmi_gpu_index=0] [seconds=2]
+// Usage: energy_probe <sleep|awake|load> [amdsmi_gpu_index=0] [seconds=2] [csv prefix]
+//   With a prefix, writes <prefix>-call-cost.csv and <prefix>-counter-changes.csv.
 //   sleep: no HIP context at all (GPU may stay in its low-power state)
 //   awake: HIP context held open on the same GPU, no work
 //   load : back-to-back FMA kernels on the same GPU
@@ -56,8 +57,9 @@ int main(int argc, char** argv) {
   std::string mode = argc > 1 ? argv[1] : "sleep";
   int gpu = argc > 2 ? std::atoi(argv[2]) : 0;
   double duration = argc > 3 ? std::atof(argv[3]) : 2.0;
+  std::string prefix = argc > 4 ? argv[4] : "";  // raw CSV output, optional
   if (mode != "sleep" && mode != "awake" && mode != "load") {
-    std::fprintf(stderr, "usage: %s <sleep|awake|load> [gpu] [seconds]\n", argv[0]);
+    std::fprintf(stderr, "usage: %s <sleep|awake|load> [gpu] [seconds] [csv prefix]\n", argv[0]);
     return 2;
   }
 
@@ -134,6 +136,21 @@ int main(int argc, char** argv) {
   std::printf("call_ns p50=%.0f p99=%.0f max=%.0f\n", percentile(cost_ns, 0.5),
               percentile(cost_ns, 0.99), percentile(cost_ns, 1.0));
 
+  // Cost of one call when calls are 10 ms apart, as in the sampling daemon.
+  std::vector<double> spaced_ns;
+  for (int i = 0; i < 1000; ++i) {
+    Clock::time_point next = Clock::now() + std::chrono::milliseconds(10);
+    while (Clock::now() < next) {
+      keep_busy();
+      std::this_thread::sleep_for(std::chrono::microseconds(500));
+    }
+    Clock::time_point t = Clock::now();
+    CHECK_SMI(amdsmi_get_energy_count(handle, &energy, &resolution, &stamp));
+    spaced_ns.push_back(std::chrono::duration<double, std::nano>(Clock::now() - t).count());
+  }
+  std::printf("spaced_10ms_call_ns p50=%.0f p99=%.0f max=%.0f\n", percentile(spaced_ns, 0.5),
+              percentile(spaced_ns, 0.99), percentile(spaced_ns, 1.0));
+
   // Refresh step: tight loop, keep only the samples where the counter moved.
   struct Change { double t; uint64_t energy, stamp; };
   std::vector<Change> changes;
@@ -166,6 +183,20 @@ int main(int argc, char** argv) {
   std::printf("energy_per_step_uJ p50=%.1f\n", percentile(step_uJ, 0.5));
   std::printf("avg_power_W=%.2f\n",
               (last - first_energy) * resolution * 1e-6 / (last_t - first_t));
+
+  if (!prefix.empty()) {
+    std::FILE* f = std::fopen((prefix + "-call-cost.csv").c_str(), "w");
+    std::fprintf(f, "spacing,call_ns\n");
+    for (double v : cost_ns) std::fprintf(f, "tight,%.0f\n", v);
+    for (double v : spaced_ns) std::fprintf(f, "10ms,%.0f\n", v);
+    std::fclose(f);
+    f = std::fopen((prefix + "-counter-changes.csv").c_str(), "w");
+    std::fprintf(f, "host_s,energy_count,firmware_timestamp\n");
+    for (const Change& c : changes)
+      std::fprintf(f, "%.9f,%llu,%llu\n", c.t, (unsigned long long)c.energy,
+                   (unsigned long long)c.stamp);
+    std::fclose(f);
+  }
 
   if (stream) {
     CHECK_HIP(hipStreamSynchronize(stream));

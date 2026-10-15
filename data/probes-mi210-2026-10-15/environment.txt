@@ -1,0 +1,63 @@
+date: 2026-10-15T13:19:34-07:00
+host: illyad, slurm job: 1656362
+rocm: /opt/rocm-7.1.1, AMDSMI Tool: 26.2.0+021c61fc | AMDSMI Library version: 26.2.0 | ROCm version: 7.1.1 | amdgpu version: 6.14.14 | amd_hsmp version: N/A
+GPU: 0
+    ASIC:
+        MARKET_NAME: AMD Instinct MI210
+        VENDOR_ID: 0x1002
+        VENDOR_NAME: Advanced Micro Devices Inc. [AMD/ATI]
+        SUBVENDOR_ID: 0x1002
+        DEVICE_ID: 0x740f
+        SUBSYSTEM_ID: 0x0c34
+        REV_ID: 0x02
+        ASIC_SERIAL: 0xC66B85231DFED9EC
+        OAM_ID: 1
+        NUM_COMPUTE_UNITS: 104
+        TARGET_GRAPHICS_VERSION: gfx90a
+    IFWI:
+        NAME: Mi200 A1 D67302 pcie
+        BUILD_DATE: 2022/03/08 15:06
+        PART_NUMBER: 113-D67302-104
+        VERSION: 020.040.000.036.000000
+    DRIVER:
+        NAME: amdgpu
+        VERSION: 6.14.14
+
+gpu_metrics: /sys/class/drm/card2/device/gpu_metrics
+GPU processes before the probes:
+PID 2265251 is using 1 DRM device(s):
+0 
+PID 2265475 is using 1 DRM device(s):
+0 
+PID 2265622 is using 1 DRM device(s):
+0 
+PID 2265566 is using 1 DRM device(s):
+1 
+PID 2264515 is using 1 DRM device(s):
+0 
+PID 2265224 is using 1 DRM device(s):
+1 
+PID 2265818 is using 1 DRM device(s):
+1 
+PID 2265959 is using 1 DRM device(s):
+1 
+PID 2265826 is using 1 DRM device(s):
+0 
+PID 2265335 is using 1 DRM device(s):
+1 
+PID 2265363 is using 1 DRM device(s):
+0 
+PID 2265108 is using 1 DRM device(s):
+0 
+PID 2265625 is using 1 DRM device(s):
+1 
+PID 2266032 is using 1 DRM device(s):
+0 
+PID 2264516 is using 1 DRM device(s):
+1 
+PID 2265462 is using 1 DRM device(s):
+1 
+PID 2265424 is using 1 DRM device(s):
+1 
+PID 2265440 is using 1 DRM device(s):
+0 

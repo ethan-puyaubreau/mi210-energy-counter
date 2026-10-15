@@ -1,0 +1,7 @@
+amdsmi_gpu=0 bdf=0000:03:00.0
+sysfs_device=/sys/devices/pci0000:00/0000:00:01.1/0000:01:00.0/0000:02:00.0/0000:03:00.0
+gpu_metrics bytes=120 format_rev=1 content_rev=3
+energy_offset=24
+pread_ns p50=42400 p99=236539 max=246300
+reads=37154 changes=2000 decreases=0
+step_ms min=0.947 p50=1.000 p99=1.047 max=1.053

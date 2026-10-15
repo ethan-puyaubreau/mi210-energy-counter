@@ -1,7 +1,7 @@
 #!/bin/bash
 # ArborX DBSCAN energy study on one MI210 of illyad, poster protocol:
 # hacc_497M (binary, now the default), --core-min-size 2 --eps 0.015, N runs per implementation,
-# sleep 0.025*i+1 s between runs. Implementations alternate run by run so a
+# sleep 0.025*k+1 s after each run of the k-th pair. Implementations alternate run by run so a
 # drift of the machine state hits both equally; the order is in runs.csv.
 # Usage: run_study.sh <out dir> [runs per impl=64]
 set -uo pipefail
@@ -10,7 +10,7 @@ N=${2:-64}
 HERE=$(cd "$(dirname "$0")" && pwd)
 EXE=~/amd-study/build/arborx/benchmarks/cluster/ArborX_Benchmark_DBSCAN.exe
 DATA=~/hacc_497M.arborx
-LIB=$HERE/connector/libkp_amdsmi_energy.so
+LIB=$HERE/../connector/libkp_amdsmi_energy.so
 export PATH=/opt/rocm-7.1.1/bin:$PATH  # srun keeps the PATH of orthus
 command -v rocm-smi > /dev/null || { echo "rocm-smi not found" >&2; exit 1; }
 export HIP_VISIBLE_DEVICES=0  # BDF 0000:03:00.0, amdsmi index 0

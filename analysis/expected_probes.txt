@@ -1,0 +1,9 @@
+counter resolution: 15.3 uJ
+run           call us p50/p99  10ms-apart us p50/p99  changes  step ms p50 [min, max]  fw step ms p50  decreases  mean W
+sleep             262 /  510         532 /  893          1660   1.170 [0.984, 3.444]          1.170          0    57.8
+awake             275 /  587         557 /  948          1704   1.129 [1.039, 1.896]          1.129          0    57.8
+load              288 /  600         469 /  881          1653   1.181 [0.967, 1.581]          1.178          0   143.6
+concurrent-1      315 /  752         463 /  772          2488   1.178 [0.936, 1.858]          1.174          0    59.9
+concurrent-2      319 /  750         459 /  794          2471   1.187 [0.905, 4.212]          1.182          0    59.9
+raw gpu_metrics pread: p50 42.4 us, p99 236.5 us; energy field changes every 1.000 ms p50 [0.947, 1.053]
+idle power from two reads 30 s apart: 57.8 W

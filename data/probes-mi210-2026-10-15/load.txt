@@ -1,0 +1,11 @@
+mode=load amdsmi_gpu=0 bdf=0000:03:00.0
+hip_device=0 bdf=0000:03:00.0
+hip_device=1 bdf=0000:27:00.0
+resolution_uJ=15.300000 counter_J=4436891.009
+call_ns p50=287989 p99=600348 max=2329154
+spaced_10ms_call_ns p50=468509 p99=880577 max=1785565
+reads=6465 changes=1653 decreases=0
+step_ms min=0.967 p50=1.181 p99=1.455 max=1.581
+fw_stamp_delta p50=1178477 (unit unknown, compare with step_ms)
+energy_per_step_uJ p50=166418.1
+avg_power_W=143.62

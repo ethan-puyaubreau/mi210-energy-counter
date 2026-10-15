@@ -1,4 +1,4 @@
-DBSCANCalculation on mi210-2026-10-09, energy from the hardware counter
+DBSCANCalculation on dbscan-mi210-2026-10-09, energy from the hardware counter
 fdbscan           median of 64 runs: 6.948 s  1465.2 J  210.9 W   (power trapezoid 1463.7 J; H100 poster 2.69 s, 777 J)
 fdbscan-densebox  median of 64 runs: 4.309 s  846.3 J  196.5 W   (power trapezoid 844.9 J; H100 poster 2.19 s, 580 J)
 fdbscan           quartiles: 6.942 to 6.953 s  1464.2 to 1466.9 J

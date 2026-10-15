@@ -1,0 +1,9 @@
+mode=sleep amdsmi_gpu=0 bdf=0000:03:00.0
+resolution_uJ=15.300000 counter_J=4439459.496
+call_ns p50=319059 p99=749978 max=1869025
+spaced_10ms_call_ns p50=459439 p99=793798 max=876428
+reads=9746 changes=2471 decreases=0
+step_ms min=0.905 p50=1.187 p99=1.432 max=4.212
+fw_stamp_delta p50=1181808 (unit unknown, compare with step_ms)
+energy_per_step_uJ p50=60021.9
+avg_power_W=59.91
